@@ -1,0 +1,149 @@
+<%- include('../partials/header', { title: 'Add Expense' }) %>
+
+<div class="page-header">
+  <div>
+    <div class="breadcrumb"><a href="/groups">Groups</a> / <a href="/groups/<%= group.id %>"><%= group.name %></a> / Add Expense</div>
+    <h1 class="page-title">Add Expense</h1>
+  </div>
+  <a href="/groups/<%= group.id %>" class="btn-ghost">← Back</a>
+</div>
+
+<div class="form-card">
+  <form action="/expenses" method="POST" id="expenseForm">
+    <input type="hidden" name="group_id" value="<%= group.id %>">
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Description</label>
+        <input type="text" name="description" placeholder="Dinner at Saravana Bhavan..." required>
+      </div>
+      <div class="form-group">
+        <label>Category</label>
+        <select name="category">
+          <option value="general">📦 General</option>
+          <option value="food">🍔 Food</option>
+          <option value="travel">✈️ Travel</option>
+          <option value="entertainment">🎬 Entertainment</option>
+          <option value="shopping">🛍️ Shopping</option>
+          <option value="utilities">⚡ Utilities</option>
+          <option value="sports">⚽ Sports</option>
+          <option value="medical">💊 Medical</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Total Amount (₹)</label>
+        <input type="number" name="amount" id="totalAmount" step="0.01" min="1" placeholder="600" required oninput="updatePreview()">
+      </div>
+      <div class="form-group">
+        <label>Discount (₹) <span class="hint">optional</span></label>
+        <input type="number" name="discount" id="discountAmt" step="0.01" min="0" value="0" placeholder="0" oninput="updatePreview()">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Paid By</label>
+      <select name="paid_by" required>
+        <% members.forEach(m => { %>
+        <option value="<%= m.id %>"><%= m.name %></option>
+        <% }) %>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Split Type</label>
+      <div class="split-toggle">
+        <label class="split-option">
+          <input type="radio" name="split_type" value="equal" checked onchange="setSplitType('equal')">
+          <span>÷ Equal Split</span>
+        </label>
+        <label class="split-option">
+          <input type="radio" name="split_type" value="custom" onchange="setSplitType('custom')">
+          <span>⚙️ Custom Amounts</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Equal Split: select members -->
+    <div id="equalSplitSection" class="form-group">
+      <label>Split Among</label>
+      <div class="members-grid">
+        <% members.forEach(m => { %>
+        <label class="member-checkbox">
+          <input type="checkbox" name="split_members" value="<%= m.id %>" checked class="split-member-check" onchange="updatePreview()">
+          <div class="member-chip">
+            <span class="avatar-dot-sm" style="background:<%= m.avatar_color %>"><%= m.name[0].toUpperCase() %></span>
+            <span class="member-name"><%= m.name %></span>
+          </div>
+        </label>
+        <% }) %>
+      </div>
+      <div class="split-preview" id="equalPreview"></div>
+    </div>
+
+    <!-- Custom Split -->
+    <div id="customSplitSection" class="form-group" style="display:none">
+      <label>Enter Each Person's Share (₹)</label>
+      <div class="custom-splits">
+        <% members.forEach(m => { %>
+        <div class="custom-split-row">
+          <div class="member-label">
+            <span class="avatar-dot-sm" style="background:<%= m.avatar_color %>"><%= m.name[0].toUpperCase() %></span>
+            <span><%= m.name %></span>
+          </div>
+          <input type="number" name="custom_amounts[<%= m.id %>]" step="0.01" min="0" placeholder="0" class="custom-amount-input" oninput="updateCustomPreview()">
+        </div>
+        <% }) %>
+      </div>
+      <div class="split-preview" id="customPreview"></div>
+    </div>
+
+    <div class="form-group">
+      <label>Notes <span class="hint">optional</span></label>
+      <textarea name="notes" rows="2" placeholder="Any additional details..."></textarea>
+    </div>
+
+    <button type="submit" class="btn-primary w-full">Add Expense →</button>
+  </form>
+</div>
+
+<script>
+function setSplitType(type) {
+  document.getElementById('equalSplitSection').style.display = type === 'equal' ? '' : 'none';
+  document.getElementById('customSplitSection').style.display = type === 'custom' ? '' : 'none';
+}
+
+function updatePreview() {
+  const total = parseFloat(document.getElementById('totalAmount').value) || 0;
+  const discount = parseFloat(document.getElementById('discountAmt').value) || 0;
+  const net = total - discount;
+  const checked = document.querySelectorAll('.split-member-check:checked');
+  const count = checked.length;
+  const preview = document.getElementById('equalPreview');
+  if (count > 0 && net > 0) {
+    const per = (net / count).toFixed(2);
+    preview.innerHTML = `<span class="preview-text">₹${net.toFixed(2)} ÷ ${count} = <strong>₹${per} per person</strong></span>`;
+  } else {
+    preview.innerHTML = '';
+  }
+}
+
+function updateCustomPreview() {
+  const total = parseFloat(document.getElementById('totalAmount').value) || 0;
+  const discount = parseFloat(document.getElementById('discountAmt').value) || 0;
+  const net = total - discount;
+  const inputs = document.querySelectorAll('.custom-amount-input');
+  let sum = 0;
+  inputs.forEach(i => sum += parseFloat(i.value) || 0);
+  const diff = (net - sum).toFixed(2);
+  const preview = document.getElementById('customPreview');
+  const ok = Math.abs(parseFloat(diff)) < 0.02;
+  preview.innerHTML = `<span class="preview-text ${ok ? 'preview-ok' : 'preview-warn'}">
+    Entered: ₹${sum.toFixed(2)} / Net: ₹${net.toFixed(2)} ${ok ? '✓ Balanced' : `(${diff > 0 ? '+' : ''}${diff} remaining)`}
+  </span>`;
+}
+</script>
+
+<%- include('../partials/footer') %>

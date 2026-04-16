@@ -1,0 +1,262 @@
+<%- include('../partials/header', { title: group.name }) %>
+
+
+<div class="page-header">
+  <div>
+    <div class="breadcrumb"><a href="/groups">Groups</a> / <%= group.name %></div>
+    <h1 class="page-title"><%= group.name %></h1>
+    <span class="category-badge category-<%= group.category %>"><%= group.category %></span>
+  </div>
+  <div class="header-actions">
+    <a href="/export/<%= group.id %>/csv" class="btn-ghost">⬇ CSV</a>
+    <a href="/export/<%= group.id %>/pdf" class="btn-ghost">⬇ PDF</a>
+    <a href="/expenses/new?group_id=<%= group.id %>" class="btn-primary">+ Add Expense</a>
+  </div>
+</div>
+
+<!-- Tab Navigation -->
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('expenses')">💳 Expenses</button>
+  <button class="tab" onclick="switchTab('balances')">⚖️ Balances</button>
+  <button class="tab" onclick="switchTab('settle')">✅ Settle Up</button>
+  <button class="tab" onclick="switchTab('charts')">📊 Charts</button>
+  <button class="tab" onclick="switchTab('history')">🕒 History</button>
+</div>
+
+<!-- EXPENSES TAB -->
+<div id="tab-expenses" class="tab-content active">
+  <% if (expenses.length === 0) { %>
+  <div class="empty-state small">
+    <div class="empty-icon">💸</div>
+    <p>No expenses yet. <a href="/expenses/new?group_id=<%= group.id %>">Add the first one!</a></p>
+  </div>
+<% } else { %>
+  <% if (typeof insights !== 'undefined') { %>
+  <div class="insights-grid">
+    <div class="insight-card">
+      <span class="insight-icon">🧑‍💼</span>
+      <strong>Top spender:</strong> <%= insights.topSpender %>
+    </div>
+    <div class="insight-card">
+      <span class="insight-icon">🍔</span>
+      <strong>Highest category:</strong> <%= insights.topCategory %>
+    </div>
+    <div class="insight-card">
+      <span class="insight-icon">📈</span>
+      <strong>Trend:</strong> <%= insights.monthlyTrend %> (Total: ₹<%= insights.totalSpent %>)
+    </div>
+  </div>
+  <% } %>
+  <div class="expense-list">
+    <% expenses.forEach(exp => { %>
+    <div class="expense-item">
+      <div class="expense-left">
+        <span class="expense-category-icon"><%
+  const emojis = { food:'🍔', travel:'✈️', entertainment:'🎬', shopping:'🛍️', utilities:'⚡', general:'📦', sports:'⚽', medical:'💊' };
+  const icon = emojis[exp.category] || '📦';
+%><%= icon %></span>
+        <div class="expense-info">
+          <div class="expense-desc"><%= exp.description %></div>
+          <div class="expense-meta">
+            <span class="badge-category"><%= exp.category %></span>
+            <span>paid by <strong><%= exp.paid_by_name %></strong></span>
+            <span class="expense-date"><%= new Date(exp.created_at).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'}) %></span>
+            <% if (exp.notes) { %><span class="note-tag" title="<%= exp.notes %>">📝 note</span><% } %>
+          </div>
+          <% if (exp.discount > 0) { %>
+          <div class="discount-tag">🏷️ ₹<%= parseFloat(exp.discount).toFixed(0) %> discount applied</div>
+          <% } %>
+        </div>
+      </div>
+      <div class="expense-right">
+        <div class="expense-amount">₹<%= (parseFloat(exp.amount) - parseFloat(exp.discount)).toFixed(2) %></div>
+        <% if (exp.discount > 0) { %>
+        <div class="original-price">₹<%= parseFloat(exp.amount).toFixed(2) %></div>
+        <% } %>
+        <div class="split-type-tag"><%= exp.split_type === 'custom' ? '⚙️ custom' : '÷ equal' %></div>
+        <div class="expense-actions">
+
+          <a href="/expenses/<%= exp.id %>" class="btn-tiny">Details</a>
+          <% if (exp.paid_by === currentUserId) { %>
+          <form action="/expenses/<%= exp.id %>?_method=DELETE" method="POST" onsubmit="return confirm('Delete this expense?')">
+            <button class="btn-tiny btn-danger">✕</button>
+          </form>
+          <% } %>
+        </div>
+
+      </div>
+    </div>
+    <% }) %>
+  </div>
+  <% } %>
+</div>
+
+<!-- BALANCES TAB -->
+<div id="tab-balances" class="tab-content">
+  <div class="balances-grid">
+    <% balances.net.forEach(u => { %>
+    <div class="balance-card <%= u.net > 0 ? 'owed' : u.net < 0 ? 'owes' : 'settled' %>">
+      <div class="balance-avatar" style="background:<%= u.avatar_color %>"><%= u.name[0].toUpperCase() %></div>
+      <div class="balance-name"><%= u.name %></div>
+      <div class="balance-amount">
+        <% if (u.net > 0.01) { %>
+          <span class="amount-positive">gets back ₹<%= u.net.toFixed(2) %></span>
+        <% } else if (u.net < -0.01) { %>
+          <span class="amount-negative">owes ₹<%= Math.abs(u.net).toFixed(2) %></span>
+        <% } else { %>
+          <span class="amount-zero">settled up ✓</span>
+        <% } %>
+      </div>
+    </div>
+    <% }) %>
+  </div>
+
+  <% if (balances.transactions.length > 0) { %>
+  <h3 class="section-title">Suggested Payments</h3>
+  <div class="transactions-list">
+    <% balances.transactions.forEach(t => { %>
+    <div class="transaction-item">
+      <div class="transaction-from">
+        <span class="avatar-dot-sm" style="background:<%= t.from.avatar_color %>"><%= t.from.name[0].toUpperCase() %></span>
+        <%= t.from.name %>
+      </div>
+      <div class="transaction-arrow">
+        <span>pays ₹<%= t.amount.toFixed(2) %></span>
+        <span>→</span>
+      </div>
+      <div class="transaction-to">
+        <span class="avatar-dot-sm" style="background:<%= t.to.avatar_color %>"><%= t.to.name[0].toUpperCase() %></span>
+        <%= t.to.name %>
+      </div>
+    </div>
+    <% }) %>
+  </div>
+  <% } else { %>
+  <div class="all-settled"><span>🎉</span> All settled up!</div>
+  <% } %>
+</div>
+
+<!-- SETTLE UP TAB -->
+<div id="tab-settle" class="tab-content">
+  <div class="form-card">
+    <h3>Record a Payment</h3>
+    <form action="/groups/<%= group.id %>/settle" method="POST">
+      <div class="form-row">
+        <div class="form-group">
+          <label>You are paying</label>
+          <select name="to_user" required>
+            <option value="">— Select person —</option>
+            <% members.forEach(m => { if (m.id !== currentUserId) { %>
+            <option value="<%= m.id %>"><%= m.name %></option>
+            <% } }) %>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Amount (₹)</label>
+          <input type="number" name="amount" step="0.01" min="1" placeholder="200" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Note <span class="hint">(optional)</span></label>
+        <input type="text" name="note" placeholder="UPI transfer, cash, etc.">
+      </div>
+      <button type="submit" class="btn-primary">Record Settlement ✓</button>
+    </form>
+  </div>
+</div>
+
+<!-- CHARTS TAB -->
+<div id="tab-charts" class="tab-content">
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h3>Spending by Person</h3>
+      <canvas id="spendingChart" width="400" height="250"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>By Category</h3>
+      <canvas id="categoryChart" width="400" height="250"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Monthly Trend</h3>
+      <canvas id="monthlyChart" width="400" height="250"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORY TAB -->
+<div id="tab-history" class="tab-content">
+  <h3 class="section-title">Settlement History</h3>
+  <% if (settlements.length === 0) { %>
+  <div class="empty-state small"><p>No settlements recorded yet.</p></div>
+  <% } else { %>
+  <div class="history-list">
+    <% settlements.forEach(s => { %>
+    <div class="history-item">
+      <div class="history-avatars">
+        <span class="avatar-dot-sm" style="background:<%= s.from_color %>"><%= s.from_name[0].toUpperCase() %></span>
+      </div>
+      <div class="history-info">
+        <span><strong><%= s.from_name %></strong> paid <strong><%= s.to_name %></strong></span>
+        <% if (s.note) { %><span class="note-text"> · <%= s.note %></span><% } %>
+        <div class="history-date"><%= new Date(s.created_at).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric', hour:'2-digit',minute:'2-digit'}) %></div>
+      </div>
+      <div class="history-amount">₹<%= parseFloat(s.amount).toFixed(2) %></div>
+    </div>
+    <% }) %>
+  </div>
+  <% } %>
+
+  <% if (group.created_by === currentUserId) { %>
+  <div class="danger-zone">
+    <h4>Danger Zone</h4>
+    <form action="/groups/<%= group.id %>?_method=DELETE" method="POST" onsubmit="return confirm('Delete this entire group and all its expenses? This cannot be undone.')">
+      <button class="btn-danger">🗑️ Delete Group</button>
+    </form>
+  </div>
+  <% } %>
+</div>
+
+<script>
+  window.SPENDING_DATA = {
+    labels: <%- JSON.stringify(spendingData ? spendingData.map(r => r.name) : []) %>,
+    values: <%- JSON.stringify(spendingData ? spendingData.map(r => parseFloat(r.total)) : []) %>
+  };
+  window.CATEGORY_DATA = {
+    labels: <%- JSON.stringify(categoryData ? categoryData.map(r => r.category) : []) %>,
+    values: <%- JSON.stringify(categoryData ? categoryData.map(r => parseFloat(r.total)) : []) %>
+  };
+  window.MONTHLY_DATA = {
+    labels: <%- JSON.stringify(monthlyData ? monthlyData.map(r => r.month) : []) %>,
+    values: <%- JSON.stringify(monthlyData ? monthlyData.map(r => parseFloat(r.total)) : []) %>
+  };
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="/js/charts.js"></script>
+
+<script>
+  function switchTab(name) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    event.currentTarget.classList.add('active');
+    if (name === 'charts' && window.renderCharts) {
+      setTimeout(() => window.renderCharts(), 50);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.split-toggle-btn').forEach(btn => {
+      btn.addEventListener('click', function () {
+        const target = document.querySelector(this.dataset.target);
+        if (target) {
+          target.classList.toggle('expanded');
+          this.textContent = target.classList.contains('expanded') ? '🙈' : '👁';
+        }
+      });
+    });
+  });
+</script>
+
+<%- include('../partials/footer') %>
+

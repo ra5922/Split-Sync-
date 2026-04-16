@@ -1,0 +1,89 @@
+<%- include('../partials/header', { title: expense.description }) %>
+
+
+<div class="page-header">
+  <div>
+    <div class="breadcrumb"><a href="/groups/<%= expense.group_id %>"><%= expense.group_name %></a> / <%= expense.description %></div>
+    <h1 class="page-title"><%= expense.description %></h1>
+    <span class="category-badge category-<%= expense.category %>"><%= expense.category %></span>
+  </div>
+  <div class="header-actions">
+    <a href="/groups/<%= expense.group_id %>" class="btn-ghost">← Back to Group</a>
+  </div>
+</div>
+
+<div class="detail-grid">
+  <div class="detail-card">
+    <h3>Expense Details</h3>
+    <div class="detail-rows">
+      <div class="detail-row">
+        <span>Description</span>
+        <span><%= expense.description %></span>
+      </div>
+      <div class="detail-row">
+        <span>Category</span>
+        <span class="badge-category"><%= expense.category %></span>
+      </div>
+      <div class="detail-row">
+        <span>Total Amount</span>
+        <span>₹<%= parseFloat(expense.amount).toLocaleString('en-IN') %></span>
+      </div>
+      <% if (parseFloat(expense.discount) > 0) { %>
+      <div class="detail-row">
+        <span>Discount</span>
+        <span class="amount-positive">-₹<%= parseFloat(expense.discount).toLocaleString('en-IN') %></span>
+      </div>
+      <div class="detail-row highlight">
+        <span>Net Amount</span>
+        <span class="amount-positive">₹<%= effectiveAmount.toLocaleString('en-IN') %></span>
+      </div>
+      <% } %>
+      <div class="detail-row">
+        <span>Paid by</span>
+        <span><%= expense.paid_by_name %></span>
+      </div>
+      <% if (expense.notes) { %>
+      <div class="detail-row">
+        <span>Notes</span>
+        <span class="hint-text"><%= expense.notes %></span>
+      </div>
+      <% } %>
+      <div class="detail-row">
+        <span>Date</span>
+        <span><%= new Date(expense.created_at).toLocaleDateString('en-IN') %></span>
+      </div>
+    </div>
+  </div>
+  
+  <div class="detail-card">
+    <h3>Split Details (<%- splits.length %> shares)</h3>
+    <div class="splits-list">
+      <% splits.forEach(function(split) { %>
+      <div class="split-row <%= split.is_settled ? 'settled' : '' %>">
+        <div class="split-person">
+          <span class="avatar-dot-sm" style="background: <%= split.avatar_color %>"><%= split.name[0].toUpperCase() %></span>
+          <%= split.name %>
+        </div>
+        <div class="split-detail">
+          owes <span class="split-amount">₹<%= parseFloat(split.amount_owed).toLocaleString('en-IN') %></span>
+          <% if (split.is_settled) { %>
+            <span class="settled-badge">✓ Settled</span>
+          <% } %>
+        </div>
+      </div>
+      <% }) %>
+    </div>
+  </div>
+</div>
+
+<% if (expense.paid_by == currentUserId) { %>
+<div class="danger-zone">
+  <h4>Delete Expense</h4>
+  <form action="/expenses/<%= expense.id %>?_method=DELETE" method="POST" onsubmit="return confirm('Delete this expense? Cannot be undone.')">
+    <button class="btn-danger">🗑️ Delete</button>
+  </form>
+</div>
+<% } %>
+
+<%- include('../partials/footer') %>
+

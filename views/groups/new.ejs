@@ -1,0 +1,59 @@
+<%- include('../partials/header', { title: 'New Group' }) %>
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Create Group</h1>
+    <p class="page-subtitle">Set up a new expense group</p>
+  </div>
+  <a href="/groups" class="btn-ghost">← Back</a>
+</div>
+
+<div class="form-card">
+  <form action="/groups" method="POST">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Group Name</label>
+        <input type="text" name="name" placeholder="Goa Trip 2024, Flat Expenses..." required>
+      </div>
+      <div class="form-group">
+        <label>Category</label>
+        <select name="category">
+          <option value="general">📦 General</option>
+          <option value="food">🍔 Food</option>
+          <option value="travel">✈️ Travel</option>
+          <option value="entertainment">🎬 Entertainment</option>
+          <option value="shopping">🛍️ Shopping</option>
+          <option value="utilities">⚡ Utilities</option>
+          <option value="sports">⚽ Sports</option>
+          <option value="medical">💊 Medical</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Add Members <span class="hint">(you're automatically included)</span></label>
+      <% if (allUsers.length === 0) { %>
+        <p class="hint-text">No other users found. Invite friends to sign up!</p>
+      <% } else { %>
+      <div class="members-grid">
+        <% allUsers.forEach(u => { %>
+        <label class="member-checkbox">
+          <input type="checkbox" name="members" value="<%= u.id %>">
+          <div class="member-chip">
+            <span class="avatar-dot-sm" style="background:<%= '#6366f1' %>"><%= u.name[0].toUpperCase() %></span>
+            <div>
+              <span class="member-name"><%= u.name %></span>
+              <span class="member-email"><%= u.email %></span>
+            </div>
+          </div>
+        </label>
+        <% }) %>
+      </div>
+      <% } %>
+    </div>
+
+    <button type="submit" class="btn-primary">Create Group →</button>
+  </form>
+</div>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,49 @@
+<%- include('../partials/header', { title: 'My Groups' }) %>
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">My Groups</h1>
+    <p class="page-subtitle">Manage your shared expenses</p>
+  </div>
+  <a href="/groups/new" class="btn-primary">+ New Group</a>
+</div>
+
+<% if (groups.length === 0) { %>
+<div class="empty-state">
+  <div class="empty-icon">🧑‍🤝‍🧑</div>
+  <h2>No groups yet</h2>
+  <p>Create a group to start splitting expenses with friends</p>
+  <a href="/groups/new" class="btn-primary">Create Your First Group</a>
+</div>
+<% } else { %>
+<div class="groups-grid">
+  <% groups.forEach(group => { %>
+  <a href="/groups/<%= group.id %>" class="group-card">
+    <div class="group-card-header">
+     <span class="category-badge category-<%= group.category %>"><%
+  const emojiMap = { food:'🍔', travel:'✈️', entertainment:'🎬', shopping:'🛍️', utilities:'⚡', general:'📦', sports:'⚽', medical:'💊' };
+%><%= emojiMap[group.category] || '📦' %> <%= group.category %></span>
+      <span class="group-date"><%= new Date(group.created_at).toLocaleDateString('en-IN', {month:'short',day:'numeric'}) %></span>
+    </div>
+    <h3 class="group-name"><%= group.name %></h3>
+    <div class="group-stats">
+      <div class="stat">
+        <span class="stat-value"><%= group.member_count %></span>
+        <span class="stat-label">members</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value"><%= group.expense_count %></span>
+        <span class="stat-label">expenses</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">₹<%= parseFloat(group.total_spent).toFixed(0) %></span>
+        <span class="stat-label">total</span>
+      </div>
+    </div>
+  </a>
+  <% }) %>
+</div>
+<% } %>
+
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= typeof title !== 'undefined' ? title + ' | SplitSync' : 'SplitSync' %></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <% if (user) { %>
+  <nav class="navbar">
+    <a href="/groups" class="nav-brand">
+      <span class="brand-icon">💸</span>
+      <span>SplitSync</span>
+    </a>
+    <div class="nav-actions">
+      <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">🌙</button>
+      <div class="nav-user">
+        <span class="avatar-dot" style="background:<%= user.avatar_color %>"><%= user.name[0].toUpperCase() %></span>
+        <span class="nav-username"><%= user.name %></span>
+      </div>
+      <form action="/auth/logout" method="POST" style="margin:0">
+        <button class="btn-ghost" type="submit">Logout</button>
+      </form>
+    </div>
+  </nav>
+  <% } %>
+
+  <main class="main-content">
+    <% if (success && success.length > 0) { %>
+      <div class="flash flash-success"><%= success[0] %></div>
+    <% } %>
+    <% if (error && error.length > 0) { %>
+      <div class="flash flash-error"><%= error[0] %></div>
+    <% } %>
+
