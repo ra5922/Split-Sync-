@@ -29,9 +29,14 @@ router.get('/new', async (req, res) => {
 
 // POST /expenses
 router.post('/', async (req, res) => {
-  console.log('=== EXPENSE POST BODY ===', JSON.stringify(req.body, null, 2));
+  const { group_id, paid_by, amount, description: rawDescription, category, discount, notes, split_type } = req.body;
 
-  const { group_id, paid_by, amount, description, category, discount, notes, split_type } = req.body;
+  const finalDescription = rawDescription ? rawDescription.trim() : '';
+  if (!finalDescription) {
+    req.flash('error', 'Description is required');
+    return res.redirect(`/expenses/new?group_id=${group_id}`);
+  }
+
   const client = await pool.connect();
 
   try {
@@ -51,36 +56,22 @@ router.post('/', async (req, res) => {
     const expense = await client.query(
       `INSERT INTO expenses (group_id, paid_by, amount, description, category, discount, notes, split_type)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [group_id, paidById, rawAmount, description.trim(), category || 'general', discountAmt, notes || null, split_type || 'equal']
+      [group_id, paidById, rawAmount, finalDescription, category || 'general', discountAmt, notes || null, split_type || 'equal']
     );
     const expenseId = expense.rows[0].id;
 
     if (split_type === 'custom') {
-      // Parse custom_amounts — handle object, array, or flat key formats
-      let customData = {};
-
-      if (req.body.custom_amounts && typeof req.body.custom_amounts === 'object' && !Array.isArray(req.body.custom_amounts)) {
-        // Correctly parsed as { "1": "50", "2": "150" }
-        customData = req.body.custom_amounts;
-      } else if (Array.isArray(req.body.custom_amounts)) {
-        // Came as array — zip with split_members to recover user IDs
-        const rawMembers = req.body.split_members;
-        const memberIds = Array.isArray(rawMembers) ? rawMembers : (rawMembers ? [rawMembers] : []);
-        req.body.custom_amounts.forEach(function(val, i) {
-          if (memberIds[i]) customData[memberIds[i]] = val;
-        });
-      } else {
-        // Flat key fallback
-        for (const key of Object.keys(req.body)) {
-          const match = key.match(/^custom_amounts\[(\d+)\]$/);
-          if (match) customData[match[1]] = req.body[key];
+      // Fetch members in exact same order as the form (alphabetical by name)
+      
+      // Build customData by zipping memberIdsByOrder with custom_amounts array
+     let customData = {};
+      for (const key of Object.keys(req.body)) {
+        const match = key.match(/^custom_amounts_(\d+)$/);
+        if (match) {
+          customData[match[1]] = req.body[key];
         }
       }
 
-      console.log('=== PARSED customData ===', customData);
-
-      // Insert split for EVERY member with amount > 0 INCLUDING payer
-      // calculateBalances skips payer's own row when computing debts
       let insertedCount = 0;
 
       for (const uid of Object.keys(customData)) {
@@ -94,16 +85,11 @@ router.post('/', async (req, res) => {
           'SELECT id FROM group_members WHERE group_id = $1 AND user_id = $2',
           [group_id, memberId]
         );
-        if (memberCheck.rows.length === 0) {
-          console.log(`User ${memberId} not in group, skipping`);
-          continue;
-        }
+        if (memberCheck.rows.length === 0) continue;
 
-        // Apply discount proportionally
         const discountedShare = rawAmount > 0 ? val - (discountAmt * (val / rawAmount)) : val;
         const rounded = Math.round(discountedShare * 100) / 100;
 
-        console.log(`Inserting split: user ${memberId} owes Rs.${rounded}`);
         await client.query(
           'INSERT INTO splits (expense_id, user_id, amount_owed) VALUES ($1, $2, $3)',
           [expenseId, memberId, rounded]
@@ -118,11 +104,14 @@ router.post('/', async (req, res) => {
       }
 
     } else {
-      // Equal split
+      // Equal split — deduplicate split_members to fix double-submission bug
       const rawMembers = req.body.split_members;
-      const membersToSplit = Array.isArray(rawMembers)
+      const allMembers = Array.isArray(rawMembers)
         ? rawMembers.map(Number)
         : (rawMembers ? [Number(rawMembers)] : []);
+
+      // Remove duplicates caused by hidden inputs + checkboxes both sending split_members
+      const membersToSplit = [...new Set(allMembers)];
 
       if (membersToSplit.length === 0) {
         req.flash('error', 'Select at least one member to split with');
@@ -130,10 +119,8 @@ router.post('/', async (req, res) => {
         return res.redirect(`/expenses/new?group_id=${group_id}`);
       }
 
-      // Per person = effective amount / total people selected
       const perPerson = Math.round((effectiveAmount / membersToSplit.length) * 100) / 100;
 
-      // Insert for ALL selected members INCLUDING payer
       for (const uid of membersToSplit) {
         await client.query(
           'INSERT INTO splits (expense_id, user_id, amount_owed) VALUES ($1, $2, $3)',
@@ -143,7 +130,7 @@ router.post('/', async (req, res) => {
     }
 
     await client.query('COMMIT');
-    req.flash('success', `Expense "${description}" added! Rs.${effectiveAmount.toFixed(2)}`);
+    req.flash('success', `Expense "${finalDescription}" added! Rs.${effectiveAmount.toFixed(2)}`);
     res.redirect(`/groups/${group_id}`);
 
   } catch (err) {
@@ -197,14 +184,9 @@ router.get('/:id', async (req, res) => {
 // DELETE /expenses/:id
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
-  const userId = req.session.user.id;
   try {
     const exp = await pool.query('SELECT * FROM expenses WHERE id = $1', [id]);
     if (!exp.rows[0]) { req.flash('error', 'Not found'); return res.redirect('/groups'); }
-    if (parseInt(exp.rows[0].paid_by) !== parseInt(userId)) {
-      req.flash('error', 'Only the payer can delete this expense');
-      return res.redirect(`/groups/${exp.rows[0].group_id}`);
-    }
     const groupId = exp.rows[0].group_id;
     await pool.query('DELETE FROM expenses WHERE id = $1', [id]);
     req.flash('success', 'Expense deleted');

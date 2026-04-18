@@ -1,4 +1,4 @@
-# 💸 SplitWise — Group Expense Splitter
+# 💸 SplitSync — Group Expense Splitter
 
 A full-stack expense splitting app built with Node.js + Express + EJS + PostgreSQL.
 

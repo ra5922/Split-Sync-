@@ -14,8 +14,9 @@
 
     <div class="form-row">
       <div class="form-group">
-        <label>Description</label>
-        <input type="text" name="description" placeholder="Dinner at Saravana Bhavan..." required>
+        <label>Description <span class="hint">(separate from custom split names)</span></label>
+        <input type="text" name="description" placeholder="Dinner for Niya & Ram..." required>
+
       </div>
       <div class="form-group">
         <label>Category</label>
@@ -84,21 +85,32 @@
     </div>
 
     <!-- Custom Split -->
-    <div id="customSplitSection" class="form-group" style="display:none">
-      <label>Enter Each Person's Share (₹)</label>
-      <div class="custom-splits">
-        <% members.forEach(m => { %>
-        <div class="custom-split-row">
-          <div class="member-label">
-            <span class="avatar-dot-sm" style="background:<%= m.avatar_color %>"><%= m.name[0].toUpperCase() %></span>
-            <span><%= m.name %></span>
-          </div>
-          <input type="number" name="custom_amounts[<%= m.id %>]" step="0.01" min="0" placeholder="0" class="custom-amount-input" oninput="updateCustomPreview()">
-        </div>
-        <% }) %>
+<!-- Custom Split -->
+<div id="customSplitSection" class="form-group" style="display:none">
+  <label>Enter Each Person's Share (₹)</label>
+  <% members.forEach(function(m) { %>
+  <input type="hidden" name="split_members" value="<%= m.id %>" class="custom-hidden-member" disabled>
+  <% }) %>
+  <div class="custom-splits">
+    <% for(var i = 0; i < members.length; i++) { %>
+    <div class="custom-split-row">
+      <div class="member-label">
+        <span class="avatar-dot-sm" style="background:<%= members[i].avatar_color %>"><%= members[i].name[0].toUpperCase() %></span>
+        <span><%= members[i].name %></span>
       </div>
-      <div class="split-preview" id="customPreview"></div>
+      <input type="number"
+        name="custom_amounts_<%= members[i].id %>"
+        step="0.01"
+        min="0"
+        value="0"
+        placeholder="0"
+        class="custom-amount-input"
+        oninput="updateCustomPreview()">
     </div>
+    <% } %>
+  </div>
+  <div class="split-preview" id="customPreview"></div>
+</div>
 
     <div class="form-group">
       <label>Notes <span class="hint">optional</span></label>
@@ -113,6 +125,16 @@
 function setSplitType(type) {
   document.getElementById('equalSplitSection').style.display = type === 'equal' ? '' : 'none';
   document.getElementById('customSplitSection').style.display = type === 'custom' ? '' : 'none';
+
+  // Enable hidden member inputs only for custom split
+  document.querySelectorAll('.custom-hidden-member').forEach(function(el) {
+    el.disabled = (type !== 'custom');
+  });
+
+  // Disable equal split checkboxes when custom is selected
+  document.querySelectorAll('.split-member-check').forEach(function(el) {
+    el.disabled = (type === 'custom');
+  });
 }
 
 function updatePreview() {
