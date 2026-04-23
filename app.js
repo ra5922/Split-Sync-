@@ -1,5 +1,3 @@
-require('dotenv').config();
-console.log('DB_HOST:', process.env.DB_HOST);
 const express = require('express');
 const bodyParser = require('body-parser');
 const session = require('express-session');
@@ -13,7 +11,7 @@ const app = express();
 
 // View engine
 app.set('view engine', 'ejs');
-
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Static files
 app.use(express.static(path.join(__dirname, 'public')));
@@ -26,7 +24,7 @@ app.use(methodOverride('_method'));
 // Session
 app.use(session({
   store: new pgSession({ pool, createTableIfMissing: true }),
-  secret: process.env.SESSION_SECRET,
+  secret: 'splitter-secret-2024',
   resave: false,
   saveUninitialized: false,
   cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 }
