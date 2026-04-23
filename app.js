@@ -11,7 +11,7 @@ const app = express();
 
 // View engine
 app.set('view engine', 'ejs');
-app.use(express.static(path.join(__dirname, 'public')));
+
 
 // Static files
 app.use(express.static(path.join(__dirname, 'public')));
@@ -24,7 +24,7 @@ app.use(methodOverride('_method'));
 // Session
 app.use(session({
   store: new pgSession({ pool, createTableIfMissing: true }),
-  secret: 'splitter-secret-2024',
+  secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 }

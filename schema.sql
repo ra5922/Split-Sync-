@@ -62,3 +62,8 @@ CREATE TABLE settlements (
   note TEXT,
   created_at TIMESTAMP DEFAULT NOW()
 );
+CREATE TABLE session (
+  sid VARCHAR NOT NULL PRIMARY KEY,
+  sess JSON NOT NULL,
+  expire TIMESTAMP NOT NULL
+);
